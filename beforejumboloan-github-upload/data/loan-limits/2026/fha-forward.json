@@ -1,0 +1,51 @@
+{
+  "schema": "fha-forward",
+  "dataset_type": "sample",
+  "source_name": "HUD FHA Forward Mortgage Limits",
+  "source_url_or_label": "https://www.hud.gov/program_offices/housing/sfh/lender/origination/mortgage_limits (CHUMS full file)",
+  "effective_year": 2026,
+  "imported_at": "2026-06-13T00:46:29.341Z",
+  "verified_at": null,
+  "record_count": 2,
+  "year": 2026,
+  "source": "HUD FHA Forward Mortgage Limits",
+  "compliance": "Configured reference only — verify current FHFA/Fannie/Freddie/HUD limits before launch.",
+  "floor": {
+    "one_unit": 1249125
+  },
+  "ceiling": {
+    "one_unit": 1249125
+  },
+  "counties": [
+    {
+      "state_name": "California",
+      "state_abbr": "CA",
+      "county_name": "Los Angeles County",
+      "county_fips": "06037",
+      "msa": "Los Angeles-Long Beach-Anaheim",
+      "year": 2026,
+      "fha_one_unit": 1249125,
+      "fha_two_unit": 1599375,
+      "fha_three_unit": 1933200,
+      "fha_four_unit": 2402625,
+      "special_area": false,
+      "source": "HUD FHA 2026 forward limits",
+      "verified_at": null
+    },
+    {
+      "state_name": "California",
+      "state_abbr": "CA",
+      "county_name": "Orange County",
+      "county_fips": "06059",
+      "msa": "Los Angeles-Long Beach-Anaheim",
+      "year": 2026,
+      "fha_one_unit": 1249125,
+      "fha_two_unit": 1599375,
+      "fha_three_unit": 1933200,
+      "fha_four_unit": 2402625,
+      "special_area": false,
+      "source": "HUD FHA 2026 forward limits",
+      "verified_at": null
+    }
+  ]
+}
