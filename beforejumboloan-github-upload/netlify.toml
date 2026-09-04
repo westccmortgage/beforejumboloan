@@ -1,6 +1,7 @@
 # Before Jumbo Loan — multi-market Strategy Studio
 # One engine (js/engine.js, MARKETS registry) served per route.
 [build]
+  command = "node scripts/install-ads.mjs"
   publish = "."
   functions = "netlify/functions"
 
