@@ -46,6 +46,9 @@ function serve() {
 
   // Deterministic market via query param.
   await page.goto(`${base}/scenario-studio.html?market=key-west`, { waitUntil: 'networkidle' });
+  // Make the same explicit consent choice a person makes before continuing.
+  // On a phone the consent dialog covers the wizard's bottom action button.
+  await page.click('[data-consent-decline]');
 
   // Market-aware copy applied from config.
   const marketName = await page.textContent('[data-market-name]');
