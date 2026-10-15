@@ -2,7 +2,7 @@
  * Drives the real wizard in a headless browser, reaches the result page, and
  * checks the AI Strategy Explainer renders and falls back gracefully when no
  * backend/API key is present (static server has no functions). */
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -28,7 +28,9 @@ function serve() {
 (async () => {
   const srv = await serve();
   const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const page = await browser.newPage(process.env.BJL_MOBILE === '1'
+    ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }
+    : { viewport: { width: 1440, height: 1000 } });
   const errors = [];
   const noise = (t) => /ERR_CERT_AUTHORITY_INVALID|Failed to load resource|favicon|fonts\.g/i.test(t);
   const warnings = [];
@@ -44,6 +46,9 @@ function serve() {
 
   // Deterministic market via query param.
   await page.goto(`${base}/scenario-studio.html?market=key-west`, { waitUntil: 'networkidle' });
+  // Make the same explicit consent choice a person makes before continuing.
+  // On a phone the consent dialog covers the wizard's bottom action button.
+  await page.click('[data-consent-decline]');
 
   // Market-aware copy applied from config.
   const marketName = await page.textContent('[data-market-name]');
@@ -74,20 +79,16 @@ function serve() {
   await page.click(opt('intent', 'Buy a primary home'));         // step 1 → auto-advance
   await stepVisible(2);
 
-  // Step 2 — property location selector. Unseeded state falls back to free text.
+  // Complete nationwide data provides a Texas county dropdown.
   await page.selectOption('#st-state', 'TX');
-  await page.waitForSelector('#st-county-free:not([hidden])', { timeout: 3000 });
-  check(await page.isVisible('#st-county-free'), 'unseeded state (TX) falls back to free-text county input');
-  check(/isn’t imported yet/i.test(await page.textContent('[data-loc-note]')), 'free-text fallback shows import warning');
-
-  // A county not in the dataset must be labeled — never silently treated as verified.
-  await page.fill('#st-county-free', 'Travis County');
-  await page.waitForFunction(
-    () => /Needs official verification/i.test(document.querySelector('[data-snap-countylimit]')?.textContent || ''),
-    { timeout: 3000 }
-  );
-  check(true, 'unseeded county labeled "Needs official verification"');
-  check(/being finalized/i.test(await page.textContent('[data-snap-limitnote]')), 'sample dataset shows "database is being finalized" note');
+  await page.waitForFunction(() => {
+    const c = document.querySelector('#st-county');
+    return c && !c.disabled && c.options.length === 255;
+  }, { timeout: 3000 });
+  check(!(await page.isVisible('#st-county-free')), 'Texas uses the complete county dropdown');
+  await page.selectOption('#st-county', 'Travis County');
+  await page.waitForFunction(() => /832,750/.test(document.querySelector('[data-snap-countylimit]')?.textContent || ''), { timeout: 3000 });
+  check(!/being finalized/i.test(await page.textContent('[data-snap-limitnote]')), 'official data does not show the sample warning');
 
   // Back to FL, pick a baseline county → limit updates to $832,750.
   await page.selectOption('#st-state', 'FL');
@@ -148,11 +149,16 @@ function serve() {
   check(fallbackParas >= 1, `fallback renders rule-based explanation (${fallbackParas} paragraphs)`);
   check(/estimated loan amount|review path/i.test(fallbackText), 'fallback text is the engine explanation');
 
-  check(warnings.some((w) => /Sample loan-limit dataset installed/i.test(w)), 'developer console warns about the sample dataset');
+  check(!warnings.some((w) => /Sample loan-limit dataset installed/i.test(w)), 'official data does not emit a sample warning');
+  check(!(await page.isVisible('.cookie-bar')), 'consent choice stays dismissed through the full wizard');
 
   console.log('\nconsole/page errors: ' + (errors.length ? '\n  ' + errors.join('\n  ') : 'none'));
   check(errors.length === 0, 'no runtime console/page errors');
 
+  if (process.env.BJL_EVIDENCE_DIR) {
+    fs.mkdirSync(process.env.BJL_EVIDENCE_DIR, { recursive: true });
+    await page.screenshot({path:path.join(process.env.BJL_EVIDENCE_DIR, 'result.png'), fullPage:true});
+  }
   await browser.close();
   srv.close();
   console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'}`);

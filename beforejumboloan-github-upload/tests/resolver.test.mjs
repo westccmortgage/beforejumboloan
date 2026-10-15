@@ -20,6 +20,14 @@ const db = {
   geo: read('data/geo/us-counties.json'),
 };
 
+
+function missingMonroeUnit(units) {
+  const copy = structuredClone(db);
+  const record = copy.conforming.counties.find(c => c.county_fips === '12087');
+  record['conforming_' + [null, 'one','two','three','four'][units] + '_unit'] = null;
+  return copy;
+}
+
 test('resolver API + compliance string present', () => {
   assert.equal(typeof API.resolveLoanLimits, 'function');
   assert.match(API.COMPLIANCE, /verify current FHFA\/Fannie\/Freddie\/HUD limits before launch/);
@@ -52,13 +60,13 @@ test('multi-unit returns the correct unit column', () => {
 });
 
 test('county present but unit not imported → baseline + warning', () => {
-  const r = API.resolveLoanLimits({ state: 'FL', county: 'Monroe County', units: 3 }, db);
+  const r = API.resolveLoanLimits({ state: 'FL', county: 'Monroe County', units: 3 }, missingMonroeUnit(3));
   assert.equal(r.countyConformingLimit, 1288800); // baseline 3-unit
   assert.match(r.warning, /three-unit limit isn’t imported/);
 });
 
 test('unknown county → national baseline + verify warning', () => {
-  const r = API.resolveLoanLimits({ state: 'TX', county: 'Travis County' }, db);
+  const r = API.resolveLoanLimits({ state: 'TX', county: 'Nonexistent Audit County' }, db);
   assert.equal(r.found, false);
   assert.equal(r.countyConformingLimit, 832750);
   assert.match(r.warning, /not in the loan-limit dataset/);
@@ -75,8 +83,10 @@ test('no dataset loaded → graceful warning, no throw', () => {
   assert.match(r.warning, /not loaded/);
 });
 
-test('geo: states complete (51) and seeded counties present', () => {
-  assert.equal(db.geo.states.length, 51); // 50 states + DC
+test('geo: all 56 FHFA jurisdictions and their counties are selectable', () => {
+  assert.equal(db.geo.states.length, 56);
+  assert.ok(db.geo.states.some(c => c.abbr === 'GU'));
+  assert.ok(db.geo.states.some(c => c.abbr === 'PR'));
   assert.ok(db.geo.counties.FL.some((c) => c.name === 'Monroe County'));
   assert.ok(db.geo.counties.CA.some((c) => c.name === 'Orange County'));
 });
@@ -104,7 +114,7 @@ test('Monroe County: 1-unit verified; 2–4 fall back to baseline with a warning
   assert.equal(r1.countyConformingLimit, 990150);
   assert.equal(r1.highCost, true);
   for (let u = 2; u <= 4; u++) {
-    const r = API.resolveLoanLimits({ state: 'FL', county: 'Monroe County', units: u }, db);
+    const r = API.resolveLoanLimits({ state: 'FL', county: 'Monroe County', units: u }, missingMonroeUnit(u));
     assert.equal(r.countyConformingLimit, db.conforming.baseline[U[u] + '_unit']);
     assert.match(r.warning, /isn’t imported yet/);
   }
@@ -117,11 +127,14 @@ test('changing units 1 → 4 changes the resolved limit', () => {
   assert.equal(u4.countyConformingLimit, 2402625);
 });
 
-test('FHA limit returned per-unit when present (LA), null when absent (Monroe)', () => {
+test('FHA limits resolve for LA and Monroe, and stay null when a county is absent', () => {
   const la = API.resolveLoanLimits({ state: 'CA', county: 'Los Angeles County', units: 2 }, db);
   assert.equal(la.fhaLimit, 1599375);
   const monroe = API.resolveLoanLimits({ state: 'FL', county: 'Monroe County', units: 1 }, db);
-  assert.equal(monroe.fhaLimit, null);
+  assert.equal(monroe.fhaLimit, 990150);
+  const missing = structuredClone(db);
+  missing.fha.counties = missing.fha.counties.filter(c => c.county_fips !== '12087');
+  assert.equal(API.resolveLoanLimits({state:'FL', county:'Monroe County'}, missing).fhaLimit, null);
 });
 
 test('resolver surfaces sourceMeta provenance', () => {
@@ -145,7 +158,7 @@ test('sourceMeta carries dataset_type and resolver exposes datasetType', () => {
 });
 
 test('county not in dataset → needsVerification true, baseline only, not silently treated as verified', () => {
-  const r = API.resolveLoanLimits({ state: 'TX', county: 'Travis County' }, db);
+  const r = API.resolveLoanLimits({ state: 'TX', county: 'Nonexistent Audit County' }, db);
   assert.equal(r.found, false);
   assert.equal(r.needsVerification, true);
   assert.equal(r.countyConformingLimit, db.conforming.baseline.one_unit);
@@ -158,6 +171,6 @@ test('seeded county for the available unit does not need verification', () => {
 });
 
 test('seeded county, unimported unit → needsVerification true', () => {
-  const r = API.resolveLoanLimits({ state: 'FL', county: 'Monroe County', units: 2 }, db);
+  const r = API.resolveLoanLimits({ state: 'FL', county: 'Monroe County', units: 2 }, missingMonroeUnit(2));
   assert.equal(r.needsVerification, true);
 });

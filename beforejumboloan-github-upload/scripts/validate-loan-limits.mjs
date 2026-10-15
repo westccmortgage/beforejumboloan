@@ -32,6 +32,10 @@ function load(rel) {
 
 function checkMeta(ds, label) {
   for (const k of REQUIRED_META) if (ds[k] == null) note(fails, `${label}: required metadata "${k}" is missing`);
+  if (!Array.isArray(ds.counties) || ds.record_count !== ds.counties.length)
+    note(fails, `${label}: record_count does not match county records`);
+  if (ds.effective_year !== YEAR || (ds.counties || []).some(c => c.year !== YEAR))
+    note(fails, `${label}: dataset year does not match requested year ${YEAR}`);
 }
 
 const fhfa = load(`data/loan-limits/${YEAR}/fhfa-conforming.json`);
@@ -73,6 +77,17 @@ if (fha) {
     note(fails, `FHA record_count ${fha.record_count} is below the nationwide threshold (${FHA_MIN_OFFICIAL})`);
   const noOne = (fha.counties || []).filter((c) => c.fha_one_unit == null || c.fha_one_unit <= 0);
   if (noOne.length) note(fails, `FHA: ${noOne.length} counties missing/invalid one-family limit`);
+  const noUnits = (fha.counties || []).filter(c =>
+    [c.fha_one_unit, c.fha_two_unit, c.fha_three_unit, c.fha_four_unit].some(n => !Number.isInteger(n) || n <= 0));
+  if (noUnits.length) note(fails, `FHA: ${noUnits.length} counties missing/invalid 1–4 unit limits`);
+  const fips = (fha.counties || []).map(c => c.county_fips);
+  if (fips.some(f => !/^\d{5}$/.test(f)) || new Set(fips).size !== fips.length)
+    note(fails, `FHA: invalid or duplicate county FIPS records`);
+  if (fhfa) {
+    const expected = new Set((fhfa.counties || []).map(c => c.county_fips));
+    if (fips.length !== expected.size || fips.some(f => !expected.has(f)))
+      note(fails, `FHA: county coverage does not match the FHFA county list`);
+  }
 }
 
 /* ---- report ---- */

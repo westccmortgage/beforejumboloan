@@ -1,5 +1,29 @@
 # Importing the national loan-limit dataset
 
+## Verified CY2026 snapshot (October 15, 2026)
+
+The installed datasets contain 3,235 FHFA counties and 3,235 HUD/FHA counties,
+covering 56 states/territories. All four unit limits are populated. Exact source
+URLs, byte sizes and SHA-256 digests are in `2026/sources.json`; original files
+are retained in `data/raw/2026/`.
+
+HUD publishes fixed-width text, not CSV. The FHA importer accepts the original
+`.txt` directly and joins truncated HUD county names to FHFA by exact state and
+county FIPS. Unknown FIPS, invalid amounts and duplicate counties stop import.
+
+Reproduce without exporting or editing source values:
+
+```bash
+node scripts/import-fhfa-limits.mjs --verified 2026-10-15 --source https://www.fhfa.gov/document/d/cll/fullcountyloanlimitlist2026_hera-based_final_flat.csv
+node scripts/import-fha-limits.mjs data/raw/2026/fha-forward-2026.txt --verified 2026-10-15 --source https://apps.hud.gov/pub/chums/cy2026-forward-limits.txt
+npm run build:geo
+npm run validate:loan-limits
+npm test
+```
+
+The readiness gate validates reference data only; it does not certify lending
+eligibility, live AI quality, security, or the production deployment.
+
 The JSON files in `data/loan-limits/<YEAR>/` are **build artifacts of the import
 scripts** — never hand-edit limits. Place the official source files in
 `data/raw/<YEAR>/` (see `data/raw/2026/README.md`) and run the importers.
@@ -71,7 +95,7 @@ these as `sourceMeta`.
 ## Seed / sample
 Committed `data/raw/2026/*.sample.csv` files (FHFA-verified seed counties only)
 let the pipeline run out of the box. The current committed JSON was produced from
-them: **5 FHFA county records, 2 FHA county records.** Replace the samples with
+them: **5 FHFA county records, 2 FHA county records in the original sample.** The installed JSON now uses the complete official snapshot. Replace the raw sources with
 the official full files (git-ignored) and re-run to import the whole nation.
 
 ## Next year
