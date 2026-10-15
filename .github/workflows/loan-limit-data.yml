@@ -1,0 +1,39 @@
+name: Loan-limit data and wizard regression
+on:
+  pull_request:
+    paths:
+      - "beforejumboloan-github-upload/**"
+      - ".github/workflows/loan-limit-data.yml"
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        mobile: ["0", "1"]
+    defaults:
+      run:
+        working-directory: beforejumboloan-github-upload
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run validate:loan-limits
+      - run: node scripts/install-ads.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          BJL_MOBILE: ${{ matrix.mobile }}
+          BJL_EVIDENCE_DIR: evidence/wizard
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: wizard-${{ matrix.mobile }}
+          path: beforejumboloan-github-upload/evidence/wizard/
+          if-no-files-found: ignore
+

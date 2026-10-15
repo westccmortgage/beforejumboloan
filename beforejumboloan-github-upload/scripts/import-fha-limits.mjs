@@ -13,6 +13,7 @@
    to the committed *.sample.csv (with a loud warning).
    ============================================================ */
 import fs from "node:fs";
+import { hudForwardRows } from "./lib/hud-forward.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -130,8 +131,10 @@ export function fhaStats(ds) {
 function resolveInput(argPath) {
   if (argPath) return argPath;
   const real = path.join(ROOT, "data/raw/2026/fha-forward-2026.csv");
+  const fixedWidth = path.join(ROOT, "data/raw/2026/fha-forward-2026.txt");
   const sample = path.join(ROOT, "data/raw/2026/fha-forward-2026.sample.csv");
   if (fs.existsSync(real)) return real;
+  if (fs.existsSync(fixedWidth)) return fixedWidth;
   if (fs.existsSync(sample)) {
     info("⚠ Using the committed SAMPLE file (a few counties only). Drop the official HUD FHA");
     info("  export at data/raw/2026/fha-forward-2026.csv to import the full nation.\n");
@@ -153,7 +156,10 @@ function main() {
   const file = resolveInput(input);
   if (/\.sample\.csv$/.test(file)) opts.datasetType = "sample";
   info("Reading: " + path.relative(ROOT, file));
-  const ds = buildFhaDataset(readCSV(file), opts);
+  const rows = /\.txt$/i.test(file)
+    ? hudForwardRows(fs.readFileSync(file, "utf8"), JSON.parse(fs.readFileSync(path.join(ROOT, "data/loan-limits/" + opts.year + "/fhfa-conforming.json"), "utf8")).counties)
+    : readCSV(file);
+  const ds = buildFhaDataset(rows, opts);
   const out = path.join(ROOT, "data/loan-limits/" + opts.year + "/fha-forward.json");
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, JSON.stringify(ds, null, 2) + "\n");

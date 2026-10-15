@@ -40,8 +40,9 @@ function main() {
   const out = {
     source: "Derived from data/loan-limits/" + year + "/fhfa-conforming.json (official FHFA county list).",
     derived_at: nowISO(),
-    note: geo.note || "States list is complete; counties are derived from the imported FHFA file.",
-    states: geo.states,
+    note: "States, territories and counties are derived from the imported FHFA file.",
+    states: [...new Map(fhfa.counties.map(c => [c.state_abbr, { abbr: c.state_abbr, name: c.state_name }])).values()]
+      .sort((a, b) => a.name.localeCompare(b.name)),
     counties
   };
   fs.writeFileSync(geoPath, JSON.stringify(out, null, 2) + "\n");

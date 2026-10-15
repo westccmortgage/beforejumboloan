@@ -3,7 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, cpSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -91,10 +92,22 @@ test('dataset_type = "sample" for a small file, "official_full" past the thresho
   assert.ok(big.record_count >= FHFA_MIN_OFFICIAL);
 });
 
-test('production gate FAILS (exit 1) while the committed sample is installed', () => {
+function sampleWorkspace() {
+  const temp = mkdtempSync(join(tmpdir(), 'bjl-sample-'));
+  cpSync(join(root, 'scripts'), join(temp, 'scripts'), { recursive: true });
+  cpSync(join(root, 'netlify.toml'), join(temp, 'netlify.toml'));
+  mkdirSync(join(temp, 'data/loan-limits/2026'), { recursive: true });
+  execFileSync('node', [join(temp, 'scripts/import-fhfa-limits.mjs'), join(root, 'data/raw/2026/fhfa-conforming-2026.sample.csv')]);
+  execFileSync('node', [join(temp, 'scripts/import-fha-limits.mjs'), join(root, 'data/raw/2026/fha-forward-2026.sample.csv')]);
+  return temp;
+}
+
+test('production gate rejects a sample dataset', () => {
+  const temp = sampleWorkspace();
+  try {
   let failed = false, output = '';
   try {
-    execFileSync('node', [join(root, 'scripts/validate-loan-limits.mjs')], { stdio: 'pipe' });
+    execFileSync('node', [join(temp, 'scripts/validate-loan-limits.mjs')], { stdio: 'pipe' });
   } catch (e) {
     failed = true;
     output = String(e.stdout || '') + String(e.stderr || '');
@@ -102,18 +115,22 @@ test('production gate FAILS (exit 1) while the committed sample is installed', (
   assert.ok(failed, 'validate:loan-limits must exit non-zero on sample data');
   assert.match(output, /NOT PRODUCTION READY/);
   assert.match(output, /dataset_type is "sample"/);
+  } finally { rmSync(temp, { recursive: true, force: true }); }
 });
 
 
-test('configured Netlify build refuses the committed sample before publishing', () => {
+test('configured Netlify build refuses sample data before publishing', () => {
+  const temp = sampleWorkspace();
+  try {
   const config = readFileSync(join(root, 'netlify.toml'), 'utf8');
   const command = config.match(/^\s*command\s*=\s*"([^"]+)"/m)?.[1];
   assert.ok(command, 'Netlify must declare a build command');
-  assert.throws(() => execFileSync('/bin/sh', ['-c', command], { cwd: root, stdio: 'pipe' }), error => {
+  assert.throws(() => execFileSync('/bin/sh', ['-c', command], { cwd: temp, stdio: 'pipe' }), error => {
     const output = String(error.stdout || '') + String(error.stderr || '');
     assert.equal(error.status, 1);
     assert.match(output, /NOT PRODUCTION READY/);
     assert.match(output, /dataset_type is "sample"/);
     return true;
   });
+  } finally { rmSync(temp, { recursive: true, force: true }); }
 });

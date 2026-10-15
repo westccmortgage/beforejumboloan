@@ -1,0 +1,22 @@
+{
+  "effective_year": 2026,
+  "retrieved_at": "2026-10-15",
+  "layout_url": "https://apps.hud.gov/pub/chums/file_layouts.html",
+  "files": [
+    {
+      "path": "data/raw/2026/fhfa-conforming-2026.csv",
+      "url": "https://www.fhfa.gov/document/d/cll/fullcountyloanlimitlist2026_hera-based_final_flat.csv",
+      "sha256": "3e4aa578ce0db02db241e2721362e978b097fad70e1532324e0d30a798dd67a8",
+      "bytes": 279192,
+      "records": 3235
+    },
+    {
+      "path": "data/raw/2026/fha-forward-2026.txt",
+      "url": "https://apps.hud.gov/pub/chums/cy2026-forward-limits.txt",
+      "sha256": "87f66a1319664457ae12763d9ac1b903056bffe898839d6406734207283c4416",
+      "bytes": 566475,
+      "records": 3235
+    }
+  ],
+  "normalization": "HUD county labels are truncated; names are joined by exact state and county FIPS to the FHFA list. No inferred limits."
+}

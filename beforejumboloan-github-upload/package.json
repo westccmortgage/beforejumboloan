@@ -20,5 +20,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
   }
 }
