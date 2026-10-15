@@ -103,3 +103,17 @@ test('production gate FAILS (exit 1) while the committed sample is installed', (
   assert.match(output, /NOT PRODUCTION READY/);
   assert.match(output, /dataset_type is "sample"/);
 });
+
+
+test('configured Netlify build refuses the committed sample before publishing', () => {
+  const config = readFileSync(join(root, 'netlify.toml'), 'utf8');
+  const command = config.match(/^\s*command\s*=\s*"([^"]+)"/m)?.[1];
+  assert.ok(command, 'Netlify must declare a build command');
+  assert.throws(() => execFileSync('/bin/sh', ['-c', command], { cwd: root, stdio: 'pipe' }), error => {
+    const output = String(error.stdout || '') + String(error.stderr || '');
+    assert.equal(error.status, 1);
+    assert.match(output, /NOT PRODUCTION READY/);
+    assert.match(output, /dataset_type is "sample"/);
+    return true;
+  });
+});
