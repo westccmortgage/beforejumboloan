@@ -150,6 +150,7 @@ function serve() {
   check(/estimated loan amount|review path/i.test(fallbackText), 'fallback text is the engine explanation');
 
   check(!warnings.some((w) => /Sample loan-limit dataset installed/i.test(w)), 'official data does not emit a sample warning');
+  check(!(await page.isVisible('.cookie-bar')), 'consent choice stays dismissed through the full wizard');
 
   console.log('\nconsole/page errors: ' + (errors.length ? '\n  ' + errors.join('\n  ') : 'none'));
   check(errors.length === 0, 'no runtime console/page errors');

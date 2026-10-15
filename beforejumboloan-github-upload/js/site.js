@@ -119,10 +119,14 @@
   if (bar) {
     var stored;
     try { stored = localStorage.getItem("kw_consent"); } catch (e) { stored = null; }
-    if (!stored) { window.setTimeout(function () { bar.classList.add("show"); }, 900); }
+    var consentTimer;
+    bar.hidden = true;
+    if (!stored) { consentTimer = window.setTimeout(function () { bar.hidden = false; bar.classList.add("show"); }, 900); }
     var setConsent = function (val) {
+      window.clearTimeout(consentTimer);
       try { localStorage.setItem("kw_consent", val); } catch (e) {}
       bar.classList.remove("show");
+      bar.hidden = true;
       if (val === "granted") ensureVisitorId();
     };
     var acc = $("[data-consent-accept]", bar), dec = $("[data-consent-decline]", bar);
